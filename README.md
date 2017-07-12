@@ -1,2 +1,2 @@
 # uva
-uva online judge problem solving
+My uva problem solving
