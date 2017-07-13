@@ -14,6 +14,7 @@ int main() {
 			res += i;
 		}
 		printf("Case %d: %d\n", ncase++, res);
+		ncase++;
 	}
 	return 0;
 }
