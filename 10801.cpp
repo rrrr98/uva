@@ -36,9 +36,7 @@ void dijkstra(node *head, node *now) {
 		node *target = it->second;
 		if (cost + now->cost < target->cost) {
 			target->cost = cost + now->cost;
-			if (target != head) {
-				dijkstra(head, target);
-			}
+			dijkstra(head, target);
 		}
 	}
 }
