@@ -2,7 +2,6 @@
 #include <iostream>
 #include <stack>
 #include <map>
-
 using namespace std;
 map<int, stack<int>> m;
 stack<int> stk;
