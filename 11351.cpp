@@ -17,7 +17,7 @@ int main() {
 	int nc;
 	int n, k;
 	cin >> nc;
-	for (int i = 1; i < nc; i++) {
+	for (int i = 1; i <= nc; i++) {
 		cin >> n >> k;
 		cout << "Case " << i << ": ";
 		cout << lastStanding(n, k) << endl;
