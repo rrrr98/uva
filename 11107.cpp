@@ -1,199 +1,141 @@
 #include <cstdio>
 #include <iostream>
 #include <vector>
-#include <algorithm>
 #include <cstring>
+#include <cmath>
+#include <algorithm>
+
+#define MAX_N 100010
 
 using namespace std;
 
-struct suffix
-{
-	int index;
-	int color;
-	int rank[2];	
-};
-
-int compare(struct suffix a, struct suffix b) {
-	return (a.rank[0] == b.rank[0]) ? (a.rank[1] < b.rank[1] ? 1 : 0) : (a.rank[0] < b.rank[0] ? 1 : 0);
-}
-
-char inputText[110005];
-char tempText[1024];
-//suffix array
-struct suffix suffixes[110005];
-int nextSuffix[110005];
-//kasai
-int lcp[110005];
-int invSuffix[110005];
-
+char T[MAX_N];
 int n;
-int hashColor[105];
+int RA[MAX_N], tempRA[MAX_N];
+int SA[MAX_N], tempSA[MAX_N];
+int c[MAX_N];
+int Phi[MAX_N], PLCP[MAX_N], LCP[MAX_N];
+int color[MAX_N], tempColor[MAX_N];
+int ctColor;
 
-void buildSuffixArray() {
-	int coloring = 0;
-	for (int i = 0; i < n; i++) {
-		suffixes[i].index = i;
-		if (inputText[i] < 'a') {
-			coloring++;
-			suffixes[i].color = -1;
-		}
-		else {
-			suffixes[i].color = coloring;
-		}
-		suffixes[i].rank[0] = inputText[i];
-		suffixes[i].rank[1] = ((i+1) < n)? (inputText[i + 1]): -1; 
+void countingSort(int k) {
+	int i, sum, maxi = max(300, n);
+	memset(c, 0, sizeof(c));
+	for (i = 0; i < n; i++) 
+		c[i + k < n ? RA[i + k] : 0]++;
+	for (i = sum = 0; i < maxi; i++){
+		int t = c[i]; c[i] = sum; sum += t;	}
+	for (i = 0; i < n; i++) {
+		tempColor[c[SA[i] + k < n ? RA[SA[i] + k] : 0]] = color[i];
+		tempSA[c[SA[i] + k < n ? RA[SA[i] + k] : 0]++] = SA[i];
 	}
-	
-	sort(suffixes, suffixes + n, compare);
-	
-	for (int i = 4; i < 2 * n; i *= 2) {
-		int rank = 0;
-		int prev = suffixes[0].rank[0];
-		suffixes[0].rank[0] = rank;
-		nextSuffix[suffixes[0].index] = 0;
-		
-		for (int j = 1; j < n; j++) {
-			if (suffixes[j].rank[0] == prev &&
-				suffixes[j].rank[1] == suffixes[j - 1].rank[1])
-			{
-				prev = suffixes[j].rank[0];
-				suffixes[j].rank[0] = rank;
-			}
-			else {
-				prev = suffixes[j].rank[0];
-				suffixes[j].rank[0] = ++rank;
-			}
-			nextSuffix[suffixes[j].index] = i;
-		}
-		
-		for (int j = 0; j < n; j++) {
-			int nextIndex = suffixes[j].index + i / 2;
-			suffixes[j].rank[1] = (nextIndex < n) ? suffixes[nextSuffix[nextIndex]].rank[0] : -1;
-		}
-		sort(suffixes, suffixes + n, compare);
+	for (i = 0; i < n; i++) {
+		SA[i] = tempSA[i];
+		color[i] = tempColor[i];	
 	}
 }
 
-void kasai() {
-	for (int i = 0; i < n; i++) {
-		invSuffix[suffixes[i].index] = i;
-	}
-	
-	int k = 0;
-	
-	for (int i = 0; i < n; i++, k?k--:0) {
-		if (invSuffix[i] == n - 1) {
-			k = 0;
+void contructSA() {
+	int i, k, r;
+	for (i = 0; i < n; i++) RA[i] = T[i];
+	for (i = 0; i < n; i++) {
+		SA[i] = i;
+		if (T[i] < 'a') {
+			ctColor++;
+			color[i] = -1;
 			continue;
 		}
-		
-		int j = suffixes[invSuffix[i] + 1].index;
-		
-		while (i + k < n && j + k < n && inputText[i + k] == inputText[j + k]) {
-			k++;
-		}
-		
-		lcp[invSuffix[i] + 1] = k;
+		color[i] = ctColor;
+	}
+	for (k = 1; k < n; k <<= 1) {
+		countingSort(k);
+		countingSort(0);
+		tempRA[SA[0]] = r = 0;
+		for (i = 1; i < n; i++)
+			tempRA[SA[i]] = (RA[SA[i]] == RA[SA[i - 1]] && RA[SA[i] + k] == RA[SA[i - 1] + k]) ? r : ++r;
+		for (i = 0; i < n; i++)
+			RA[i] = tempRA[i];
+		if (RA[SA[n - 1]] == n - 1) break;
 	}
 }
 
+void computeLCP() {
+	int i, L;
+	Phi[SA[0]] = -1;
+	for (i = 1; i < n; i++)
+		Phi[SA[i]] = SA[i - 1];
+	for (i = L = 0; i < n; i++) {
+		if (Phi[i] == -1) {
+			PLCP[i] = 0;
+			continue;
+		}
+		while (T[i + L] == T[Phi[i] + L]) L++;
+		PLCP[i] = L;
+		L = max(L - 1, 0);
+	}
+	for (i = 0; i < n; i++)
+		LCP[i] = PLCP[SA[i]];
+}
 
 int main() {
 	int nc;
-	int pref;
-	int ncStat = 0;
+	int tempLength, padding;
+	char tempStr[1024];
+	int low, high;
 	while (scanf("%d", &nc) == 1 && nc) {
-		if (ncStat > 0) printf("\n");
-		ncStat++; 
-		n = -1;
-		pref = '#';
+		padding = 0;
 		for (int i = 0; i < nc; i++) {
-			if (n != -1) {
-				inputText[n] = pref++;
-				scanf("%s", tempText);
-				int l = strlen(tempText);
-				for (int j = 0; j < l; j++) {
-					inputText[n + 1 + j] = tempText[j];
-				}
-				n += strlen(tempText) + 1;
-			}
-			else {
-				scanf("%s", inputText);
-				n = strlen(inputText);
-			}
+			scanf("%s", tempStr);
+			strcpy(&T[padding], tempStr);
+			padding += strlen(tempStr);
+			T[padding++] = '#' + i;
 		}
-		inputText[n] = pref;
-		inputText[n + 1] = '\0';
-		n = strlen(inputText);
-//		printf("%s\n", inputText);
-		buildSuffixArray();
-		kasai();
-		for (int i = 0; i < n; i++) {
-			printf("%d ", lcp[i]);
-			printf("%s ", &inputText[suffixes[i].index]);
-			printf("%d\n", suffixes[i].color);
-		}
-		// sliding windows
-		int maxLength = 0;
-		vector<int> result;
-		for (int i = 0; i < nc; i++) {
-			hashColor[i] = 0;
-		}
-		int top = 0;
-		int bottom = 0;
-		while (top != n - 1 && bottom != n - 1) {
-			if (top == bottom) {
-				bottom += 1;
-				if (bottom != n - 1) {
-					hashColor[suffixes[bottom].color]++;
+		T[++padding] = '\0';
+		n = strlen(T);
+		contructSA();
+		computeLCP();
+//		for (int i = 0; i < n; i++) {
+//			printf("%d %s %d\n", LCP[i], &T[SA[i]], color[i]);
+//		}
+		low = high = 0;
+		int hashColor[ctColor];
+		if (color[low] != -1) hashColor[color[low]] = 1;
+		memset(hashColor, 0, sizeof(hashColor));
+		int result = 0;
+		while (low != n - 1 && high != n - 1) {
+			if (low == high) {
+				high++;
+				if (high != n - 1) {
+					hashColor[color[high]]++;
 				}
 				continue;
 			}
 			int ct = 0;
-			for (int i = 0; i < nc; i++) {
+			for (int i = 0; i < ctColor; i++) {
 				if (hashColor[i] > 0) {
 					ct++;
 				}
 			}
-			if (ct <= nc / 2) {
-				bottom += 1;
-				if (bottom != n - 1) {
-					hashColor[suffixes[bottom].color]++;
+			
+			if (ct > nc / 2) {
+				int ct = LCP[low + 1];
+				for (int i = low + 2; i <= high; i++) {
+					ct = min(ct, LCP[i]);
 				}
+				printf("ct : %d\n", ct);
+				result = max(result, ct);
+				
+				hashColor[color[low]]--;
+				low++;
 			}
 			else {
-				int temp = lcp[top + 1];
-				for (int i = top + 2; i <= bottom; i++) {
-					if (lcp[i] < temp) {
-						temp = lcp[i];
-						break;
-					}
+				high++;
+				if (high != n - 1) {
+					hashColor[color[high]]++;
 				}
-				if (maxLength < temp) {
-					maxLength = temp;
-					result.clear();
-					result.push_back(top + 1);
-				}
-				else if (maxLength == temp) {
-					result.push_back(top + 1);
-				}
-				hashColor[suffixes[top].color]--;
-				top++;
-				hashColor[suffixes[top].color]++;
 			}
 		}
-//		printf("max length : %d\n", maxLength);
-		if (maxLength > 0) {
-			for (auto it : result) {
-				for (int i = 0; i < maxLength; i++) {
-					printf("%c", inputText[suffixes[it].index + i]);
-				}
-				printf("\n");
-			}
-		}
-		else {
-			printf("?\n");
-		}
-	} 
+		printf("%d", result);
+	}
 	return 0;
 }
