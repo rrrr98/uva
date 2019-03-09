@@ -4,6 +4,8 @@
 #include <cstring>
 #include <cmath>
 #include <algorithm>
+#include <set>
+#include <string>
 
 #define MAX_N 100010
 
@@ -16,7 +18,6 @@ int SA[MAX_N], tempSA[MAX_N];
 int c[MAX_N];
 int Phi[MAX_N], PLCP[MAX_N], LCP[MAX_N];
 int color[MAX_N], tempColor[MAX_N];
-int ctColor;
 
 void countingSort(int k) {
 	int i, sum, maxi = max(300, n);
@@ -38,6 +39,7 @@ void countingSort(int k) {
 void contructSA() {
 	int i, k, r;
 	for (i = 0; i < n; i++) RA[i] = T[i];
+	int ctColor = 0;
 	for (i = 0; i < n; i++) {
 		SA[i] = i;
 		if (T[i] < 'a') {
@@ -79,63 +81,105 @@ void computeLCP() {
 
 int main() {
 	int nc;
+	int ts = 0;
 	int tempLength, padding;
-	char tempStr[1024];
 	int low, high;
+	char tempStr[1024];
 	while (scanf("%d", &nc) == 1 && nc) {
+		if (ts > 0) printf("\n");
+		ts++;
 		padding = 0;
+		vector<int> s;
 		for (int i = 0; i < nc; i++) {
 			scanf("%s", tempStr);
+			if (nc == 1) {
+				printf("%s\n", tempStr);
+				break;
+			}
 			strcpy(&T[padding], tempStr);
 			padding += strlen(tempStr);
-			T[padding++] = '#' + i;
+			T[padding++] = '$'
+			T[padding] = 0;
 		}
-		T[++padding] = '\0';
+		if (nc == 1) continue;
+		T[padding - 1] = '\0';
 		n = strlen(T);
 		contructSA();
 		computeLCP();
 //		for (int i = 0; i < n; i++) {
-//			printf("%d %s %d\n", LCP[i], &T[SA[i]], color[i]);
+//			printf("%d %s %d index : %d\n", LCP[i], &T[SA[i]], color[i], i);
 //		}
 		low = high = 0;
-		int hashColor[ctColor];
-		if (color[low] != -1) hashColor[color[low]] = 1;
+		int hashColor[nc];
 		memset(hashColor, 0, sizeof(hashColor));
 		int result = 0;
-		while (low != n - 1 && high != n - 1) {
+		while (low < n && color[low] == -1) {
+			low++;
+			high++;
+		}
+		if (low < n && color[low] != -1) hashColor[color[low]] = 1;
+		while (low < n && high < n) {
 			if (low == high) {
 				high++;
-				if (high != n - 1) {
+				if (high < n) {
 					hashColor[color[high]]++;
 				}
 				continue;
 			}
 			int ct = 0;
-			for (int i = 0; i < ctColor; i++) {
+			for (int i = 0; i < nc; i++) {
 				if (hashColor[i] > 0) {
 					ct++;
 				}
 			}
-			
+//			cout << "low : " << low << " high : " << high << endl;
 			if (ct > nc / 2) {
-				int ct = LCP[low + 1];
-				for (int i = low + 2; i <= high; i++) {
-					ct = min(ct, LCP[i]);
-				}
-				printf("ct : %d\n", ct);
-				result = max(result, ct);
-				
 				hashColor[color[low]]--;
 				low++;
+				if (low >= n) continue;
+				ct = LCP[low];
+//				cout << "init : " << LCP[low + 1] << " | low : " << low << " high : " << high << endl;
+				for (int i = low + 1; i <= high; i++) {
+					ct = min(ct, LCP[i]);
+				}
+				if (ct > result) {
+					s.clear();
+					s.push_back(low);
+					result = ct;
+				}
+				else if (ct == result) {
+					s.push_back(low);
+				}
 			}
 			else {
 				high++;
-				if (high != n - 1) {
+				if (high < n) {
 					hashColor[color[high]]++;
 				}
 			}
 		}
-		printf("%d", result);
+		
+		if (result > 0) {
+			vector<string> v;
+			for (auto it : s) {
+				char tChar[1024];
+				int i;
+				for (i = 0; i < result; i++) {
+					tChar[i] = T[SA[it] + i];
+				}
+				tChar[i] = '\0';
+				auto it2 = find(v.begin(), v.end(), tChar);
+				if (it2 == v.end()) {
+					v.push_back(tChar);
+				}
+			}
+			for (auto it : v) {
+				cout << it << endl;
+			}
+		}
+		else {
+			printf("?\n");
+		}
 	}
 	return 0;
 }
