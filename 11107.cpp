@@ -7,7 +7,7 @@
 #include <set>
 #include <string>
 
-#define MAX_N 100010
+#define MAX_N 101010
 
 using namespace std;
 
@@ -17,7 +17,11 @@ int RA[MAX_N], tempRA[MAX_N];
 int SA[MAX_N], tempSA[MAX_N];
 int c[MAX_N];
 int Phi[MAX_N], PLCP[MAX_N], LCP[MAX_N];
-int color[MAX_N], tempColor[MAX_N];
+int nc;
+int lengths[105];
+int owners[MAX_N];
+int cts[105];
+int maxLCS;
 
 void countingSort(int k) {
 	int i, sum, maxi = max(300, n);
@@ -27,12 +31,10 @@ void countingSort(int k) {
 	for (i = sum = 0; i < maxi; i++){
 		int t = c[i]; c[i] = sum; sum += t;	}
 	for (i = 0; i < n; i++) {
-		tempColor[c[SA[i] + k < n ? RA[SA[i] + k] : 0]] = color[i];
 		tempSA[c[SA[i] + k < n ? RA[SA[i] + k] : 0]++] = SA[i];
 	}
 	for (i = 0; i < n; i++) {
 		SA[i] = tempSA[i];
-		color[i] = tempColor[i];	
 	}
 }
 
@@ -40,15 +42,7 @@ void contructSA() {
 	int i, k, r;
 	for (i = 0; i < n; i++) RA[i] = T[i];
 	int ctColor = 0;
-	for (i = 0; i < n; i++) {
-		SA[i] = i;
-		if (T[i] > 26) {
-			ctColor++;
-			color[i] = -1;
-			continue;
-		}
-		color[i] = ctColor;
-	}
+	for (i = 0; i < n; i++) SA[i] = i;
 	for (k = 1; k < n; k <<= 1) {
 		countingSort(k);
 		countingSort(0);
@@ -71,7 +65,7 @@ void computeLCP() {
 			PLCP[i] = 0;
 			continue;
 		}
-		while (T[i + L] == T[Phi[i] + L]) L++;
+		while (T[i + L] != '$' && T[i + L] == T[Phi[i] + L]) L++; // tambahin gk boleh T[i + L] == '$' krn $ adalah pembatas
 		PLCP[i] = L;
 		L = max(L - 1, 0);
 	}
@@ -79,108 +73,76 @@ void computeLCP() {
 		LCP[i] = PLCP[SA[i]];
 }
 
+int owner(int idx) {
+  for (int i = 0, length = lengths[i] + 1; ; i++, length += lengths[i] + 1) {
+    if (idx < length - 1) // sebelum setiap $
+      return i;
+    else if (idx == length - 1) // nabrak $
+      return -1;
+  }
+}
+
 int main() {
-	int nc;
 	int ts = 0;
-	int tempLength, padding;
-	int low, high;
-	char tempStr[1024];
 	while (scanf("%d", &nc) == 1 && nc) {
 		if (ts > 0) printf("\n");
 		ts++;
-		padding = 0;
-		vector<int> s;
-		for (int i = 0; i < nc; i++) {
-			scanf("%s", tempStr);
-			if (nc == 1) {
-				printf("%s\n", tempStr);
-				break;
-			}
-			for (int j = 0; j < strlen(tempStr); j++) {
-				tempStr[j] -= 'a' - 1;
-			}
-			strcpy(&T[padding], tempStr);
-			padding += strlen(tempStr);
-			T[padding++] = 27 + i;
-			T[padding] = 0;
+		if (nc == 1) { // kalau stringnya hanya 1, kembalikan string itu
+			scanf("%s", T);
+			printf("%s\n", T);
+			continue;
 		}
-		if (nc == 1) continue;
-//		T[padding - 1] = '\0';
-		n = strlen(T);
+		n = 0;
+		for (int i = 0; i < nc; i++) { // proses append string ke T, sebagai string seluruhnya
+			scanf("%s", T + n);
+			lengths[i] = strlen(T + n);
+			n += lengths[i];
+			T[n++] = '$';
+		}
+		T[n] = '\0';
 		contructSA();
 		computeLCP();
-//		for (int i = 0; i < n; i++) {
-//			printf("%d %s %d index : %d\n", LCP[i], &T[SA[i]], color[i], i);
-//		}
-		low = high = 0;
-		int hashColor[nc];
-		memset(hashColor, 0, sizeof(hashColor));
-		int result = 0;
-		while (low < n && color[low] == -1) {
-			low++;
-			high++;
+		for (int i = 0; i < n; i++) { // untuk tahu SA ke i itu milik string nomor berapa dalam string seluruhnya. (coloring)
+			owners[i] = owner(SA[i]);
 		}
-		if (low < n && color[low] != -1) hashColor[color[low]] = 1;
-		while (low < n && high < n) {
-			if (low == high) {
-				high++;
-				if (high < n) {
-					hashColor[color[high]]++;
-				}
-				continue;
-			}
-			int ct = 0;
-			for (int i = 0; i < nc; i++) {
-				if (hashColor[i] > 0) {
-					ct++;
+		maxLCS = 0;
+		memset(cts, 0, sizeof(cts)); // init counter sebagai hash untuk menghitung jumlah kepemilikan string (digunakan utk pengecekan dengan jumlah orang -> nc)
+		int i = nc, j = nc, total = 0;
+		vector<int> result;
+		while (j < n) { // sliding windows i, j
+			if (total <= nc / 2) {
+				if (!cts[owners[j++]]++) {
+					++total;
 				}
 			}
-//			cout << "low : " << low << " high : " << high << endl;
-			if (ct > nc / 2) {
-				hashColor[color[low]]--;
-				low++;
-				if (low >= n) continue;
-				ct = LCP[low];
-//				cout << "init : " << LCP[low + 1] << " | low : " << low << " high : " << high << endl;
-				for (int i = low + 1; i <= high; i++) {
-					ct = min(ct, LCP[i]);
+			if (total > nc / 2) {
+				int k = min_element(LCP + i + 1, LCP + j) - LCP; // min element [x, y) | LCP + i + 1 karena yg pertama dalam LCP tidak di cek (bukan hasil)
+				if (LCP[k] > maxLCS) { // kalau panjang LCP (yang minimum) ^ lebih besar dari maxLCS
+					maxLCS = LCP[k];
+					result.clear();
+					result.push_back(SA[k]);
 				}
-				if (ct > result) {
-					s.clear();
-					s.push_back(low);
-					result = ct;
+				else if (maxLCS != 0 && LCP[k] == maxLCS) { // maxLCS == 0 tidak boleh dimasukkan ke dalam result
+					result.push_back(SA[k]);
 				}
-				else if (ct == result) {
-					s.push_back(low);
-				}
-			}
-			else {
-				high++;
-				if (high < n) {
-					hashColor[color[high]]++;
+				if (!--cts[owners[i++]]) {
+					--total;
 				}
 			}
 		}
-		
-		if (result > 0) {
-			vector<string> v;
-			for (auto it : s) {
-				char tChar[1024];
-				int i;
-				for (i = 0; i < result; i++) {
-					tChar[i] = T[SA[it] + i] + 'a' - 1;
+		if (result.size() > 0) { // urutan lexicography jadi string yg sama pasti urutan. simpan di tSA utk temporary SA
+			int tSA = -1;
+			for (auto it : result) {
+				if (tSA == -1 || strncmp(T + tSA, T + it, maxLCS)) { // cek supaya tidak berulang stringnya (unique result)
+					tSA = it;
+					char c = T[tSA + maxLCS];
+					T[tSA + maxLCS] = '\0';
+					printf("%s\n", T + tSA);
+					T[tSA + maxLCS] = c;
 				}
-				tChar[i] = '\0';
-				auto it2 = find(v.begin(), v.end(), tChar);
-				if (it2 == v.end()) {
-					v.push_back(tChar);
-				}
-			}
-			for (auto it : v) {
-				cout << it << endl;
 			}
 		}
-		else {
+		else { // resultnya gk ada isi
 			printf("?\n");
 		}
 	}
