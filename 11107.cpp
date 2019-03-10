@@ -42,7 +42,7 @@ void contructSA() {
 	int ctColor = 0;
 	for (i = 0; i < n; i++) {
 		SA[i] = i;
-		if (T[i] < 'a') {
+		if (T[i] > 26) {
 			ctColor++;
 			color[i] = -1;
 			continue;
@@ -96,13 +96,16 @@ int main() {
 				printf("%s\n", tempStr);
 				break;
 			}
+			for (int j = 0; j < strlen(tempStr); j++) {
+				tempStr[j] -= 'a' - 1;
+			}
 			strcpy(&T[padding], tempStr);
 			padding += strlen(tempStr);
-			T[padding++] = '$'
+			T[padding++] = 27 + i;
 			T[padding] = 0;
 		}
 		if (nc == 1) continue;
-		T[padding - 1] = '\0';
+//		T[padding - 1] = '\0';
 		n = strlen(T);
 		contructSA();
 		computeLCP();
@@ -165,7 +168,7 @@ int main() {
 				char tChar[1024];
 				int i;
 				for (i = 0; i < result; i++) {
-					tChar[i] = T[SA[it] + i];
+					tChar[i] = T[SA[it] + i] + 'a' - 1;
 				}
 				tChar[i] = '\0';
 				auto it2 = find(v.begin(), v.end(), tChar);
